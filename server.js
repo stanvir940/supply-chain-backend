@@ -350,5 +350,56 @@ app.get("/api/predict-today", async (req, res) => {
   }
 });
 
+// admin dashboard route
+// ✅ Admin Route: Get all users (excluding password)
+app.get("/api/users", authenticateToken, async (req, res) => {
+  try {
+    // Optional: You can check if the logged-in user is an admin here
+    // if (req.user.email !== "admin@example.com") {
+    //   return res.status(403).json({ error: "Forbidden" });
+    // }
+
+    const users = await usersCollection
+      .find({}, { projection: { password: 0 } }) // exclude password
+      .toArray();
+
+    res.json(users);
+  } catch (error) {
+    console.error("Get All Users Error:", error.message);
+    res.status(500).json({ error: "Failed to fetch users" });
+  }
+});
+
+// ✅ Admin Route: Get all users with their stock & transactions
+app.get("/api/admin/users-data", authenticateToken, async (req, res) => {
+  try {
+    // Optional: check if user is admin
+    // if (req.user.email !== "admin@example.com") {
+    //   return res.status(403).json({ error: "Forbidden" });
+    // }
+
+    // Get all users (excluding password)
+    const users = await usersCollection
+      .find({}, { projection: { password: 0 } })
+      .toArray();
+
+    // For each user, get their stock data
+    const usersWithStock = await Promise.all(
+      users.map(async (user) => {
+        const stockData = await dataCollection
+          .find({ userId: new ObjectId(user._id) })
+          .toArray();
+
+        return { ...user, stockData };
+      })
+    );
+
+    res.json(usersWithStock);
+  } catch (error) {
+    console.error("Admin Users Data Error:", error.message);
+    res.status(500).json({ error: "Failed to fetch users data" });
+  }
+});
+
 // Start Server
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
